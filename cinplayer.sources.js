@@ -24,101 +24,119 @@
     return { url: data.url, type: 'hls', provider: 'CinPlayer test' };
   }
 
-  function adapter(id, label, provider, movie, tv) {
+  function adapter(id, label, color, provider, movie, tv) {
     return {
       id: id,
       label: label,
+      color: color,
       provider: provider,
       resolve: async function (context) {
         var override = context.params.get(id);
         if (override) {
-          return { url: override, type: inferType(override), provider: 'manual override' };
+          return {
+            url: override,
+            type: inferType(override),
+            provider: 'manual override'
+          };
         }
 
         if (!context.id) return null;
         var template = context.season ? tv : movie;
         if (!template) return null;
-        return { url: fill(template, context), type: 'embed', provider: provider };
+
+        return {
+          url: fill(template, context),
+          type: 'embed',
+          provider: provider
+        };
       }
     };
   }
 
   var sources = [
-    adapter('monkey', 'Monkey', 'VidFast',
+    adapter('monkey', 'Monkey', '#ff7a66', 'VidFast',
       'https://vidfast.to/embed/movie/{id}',
       'https://vidfast.to/embed/tv/{id}/{season}/{episode}'),
 
-    adapter('elk', 'Elk', 'Videasy',
+    adapter('elk', 'Elk', '#6ec8ff', 'Videasy',
       'https://player.videasy.net/movie/{id}?overlay=true',
       'https://player.videasy.net/tv/{id}/{season}/{episode}?overlay=true&episodeSelector=true&nextEpisode=true'),
 
-    adapter('panda', 'Panda', 'VidKing',
+    adapter('panda', 'Panda', '#c69cff', 'VidKing',
       'https://www.vidking.net/embed/movie/{id}?autoPlay=true',
       'https://www.vidking.net/embed/tv/{id}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true'),
 
-    adapter('otter', 'Otter', '2Embed',
+    adapter('otter', 'Otter', '#ffd166', '2Embed',
       'https://www.2embed.to/embed/tmdb/movie?id={id}',
       'https://www.2embed.to/embed/tmdb/tv?id={id}&s={season}&e={episode}'),
 
-    adapter('fox', 'Fox', 'AutoEmbed',
+    adapter('fox', 'Fox', '#ff9f43', 'AutoEmbed',
       'https://autoembed.co/movie/tmdb/{id}',
       'https://autoembed.co/tv/tmdb/{id}-{season}-{episode}'),
 
-    adapter('lynx', 'Lynx', 'VidSrc.rip',
+    adapter('lynx', 'Lynx', '#7ee0c3', 'VidSrc.rip',
       'https://vidsrc.rip/embed/movie/{id}',
       'https://vidsrc.rip/embed/tv/{id}/{season}/{episode}'),
 
-    adapter('bear', 'Bear', 'VidSrc.xyz',
+    adapter('bear', 'Bear', '#f08ab1', 'VidSrc.xyz',
       'https://vidsrc.xyz/embed/movie/{id}',
       'https://vidsrc.xyz/embed/tv/{id}/{season}/{episode}'),
 
-    adapter('raven', 'Raven', '111Movies',
+    adapter('raven', 'Raven', '#b9a7ff', '111Movies',
       'https://111movies.net/movie/{id}',
       'https://111movies.net/tv/{id}/{season}/{episode}'),
 
-    adapter('koala', 'Koala', 'TouStream',
+    adapter('koala', 'Koala', '#8bd17c', 'TouStream',
       'https://toustream.xyz/tou/movies/{id}',
       'https://toustream.xyz/tou/tv/{id}/{season}/{episode}'),
 
-    adapter('gecko', 'Gecko', 'VidSrc Hair',
+    adapter('gecko', 'Gecko', '#66d9ef', 'VidSrc Hair',
       'https://vidsrc.hair/embed/movie/{id}',
       'https://vidsrc.hair/embed/tv/{id}/{season}/{episode}'),
 
-    adapter('coyote', 'Coyote', 'VidSrc.tw',
+    adapter('coyote', 'Coyote', '#f1a66a', 'VidSrc.tw',
       'https://vidsrc.tw/embed/movie/{id}',
       'https://vidsrc.tw/embed/tv/{id}/{season}/{episode}'),
 
-    adapter('falcon', 'Falcon', 'EmbedSU',
+    adapter('falcon', 'Falcon', '#8aa7ff', 'EmbedSU',
       'https://embed.su/embed/movie/{id}',
       'https://embed.su/embed/tv/{id}/{season}/{episode}'),
 
-    adapter('wolf', 'Wolf', 'MoviesAPI',
+    adapter('wolf', 'Wolf', '#ef8b8b', 'MoviesAPI',
       'https://moviesapi.club/movie/{id}',
       'https://moviesapi.club/tv/{id}-{season}-{episode}'),
 
-    adapter('rabbit', 'Rabbit', 'MultiEmbed',
+    adapter('rabbit', 'Rabbit', '#df9cf0', 'MultiEmbed',
       'https://multiembed.mov/?video_id={id}&tmdb=1',
       'https://multiembed.mov/?video_id={id}&tmdb=1&s={season}&e={episode}'),
 
-    adapter('tiger', 'Tiger', 'VidZee',
+    adapter('tiger', 'Tiger', '#ffb84d', 'VidZee',
       'https://player.vidzee.wtf/embed/movie/{id}',
       'https://player.vidzee.wtf/embed/tv/{id}/{season}/{episode}'),
 
-    adapter('deer', 'Deer', 'VidJoy',
+    adapter('deer', 'Deer', '#8fd3ff', 'VidJoy',
       'https://vidjoy.pro/embed/movie/{id}',
       'https://vidjoy.pro/embed/tv/{id}/{season}/{episode}'),
 
-    adapter('badger', 'Badger', 'VidNest',
+    adapter('badger', 'Badger', '#a8df8e', 'VidNest',
       'https://vidnest.fun/movie/{id}',
       'https://vidnest.fun/tv/{id}/{season}/{episode}'),
 
-    adapter('hawk', 'Hawk', 'MappleTV',
+    adapter('hawk', 'Hawk', '#f29ac2', 'MappleTV',
       'https://mapple.uk/watch/movie/{id}?autoPlay=true',
       'https://mapple.uk/watch/tv/{id}-{season}-{episode}?nextButton=true&autoPlay=true'),
 
-    adapter('bison', 'Bison', 'AutoEmbed player',
+    adapter('bison', 'Bison', '#b5a7ff', 'AutoEmbed player',
       'https://player.autoembed.cc/embed/movie/{id}',
-      'https://player.autoembed.cc/embed/tv/{id}/{season}/{episode}')
+      'https://player.autoembed.cc/embed/tv/{id}/{season}/{episode}'),
+
+    adapter('heron', 'Heron', '#70d6c7', 'Vidify',
+      'https://vidify.top/embed/movie/{id}',
+      'https://vidify.top/embed/tv/{id}/{season}/{episode}'),
+
+    adapter('moose', 'Moose', '#f0c36d', 'VidCore',
+      'https://www.vidcore.org/embed/movie/{id}',
+      'https://www.vidcore.org/embed/tv/{id}/{season}/{episode}')
   ];
 
   var monkey = sources[0];
@@ -127,6 +145,33 @@
     if (context.test) return fetchTestStream();
     return originalResolve(context);
   };
+
+  // Warm DNS/TLS for providers without loading every embed at once.
+  var origins = new Set();
+  sources.forEach(function (source) {
+    try {
+      var ctx = { id: '1', season: '', episode: '1', params: new URLSearchParams() };
+      Promise.resolve(source.resolve(ctx)).then(function (candidate) {
+        if (!candidate || !candidate.url) return;
+        try {
+          var origin = new URL(candidate.url).origin;
+          if (origins.has(origin)) return;
+          origins.add(origin);
+
+          var link = document.createElement('link');
+          link.rel = 'preconnect';
+          link.href = origin;
+          link.crossOrigin = 'anonymous';
+          document.head.appendChild(link);
+
+          var dns = document.createElement('link');
+          dns.rel = 'dns-prefetch';
+          dns.href = origin;
+          document.head.appendChild(dns);
+        } catch (_) {}
+      }).catch(function () {});
+    } catch (_) {}
+  });
 
   window.CINPLAYER_SOURCE_ADAPTERS = sources;
 })();
