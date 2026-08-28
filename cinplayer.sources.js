@@ -2,7 +2,13 @@
 
 (function () {
   function inferType(url, hinted) {
-    if (hinted) return String(hinted).toLowerCase();
+    if (hinted) {
+      var hint = String(hinted).toLowerCase();
+      if (hint.includes('m3u8') || hint.includes('hls')) return 'hls';
+      if (hint.includes('mpd') || hint.includes('dash')) return 'dash';
+      if (hint.includes('mp4') || hint.includes('video')) return 'mp4';
+    }
+
     var clean = String(url || '').split('?')[0].toLowerCase();
     if (clean.includes('.m3u8') || clean.includes('.m3u')) return 'hls';
     if (clean.includes('.mpd')) return 'dash';
@@ -11,10 +17,20 @@
   }
 
   function fill(template, context) {
-    return template
+    return String(template || '')
       .replaceAll('{id}', encodeURIComponent(context.id || ''))
       .replaceAll('{season}', encodeURIComponent(context.season || '1'))
       .replaceAll('{episode}', encodeURIComponent(context.episode || '1'));
+  }
+
+  function vidFastVC(context) {
+    if (!context.id) return null;
+    if (context.season) {
+      return 'https://vidfast.vc/tv/' + encodeURIComponent(context.id) + '/' +
+        encodeURIComponent(context.season || '1') + '/' +
+        encodeURIComponent(context.episode || '1');
+    }
+    return 'https://vidfast.vc/movie/' + encodeURIComponent(context.id);
   }
 
   async function fetchTestStream() {
@@ -31,7 +47,7 @@
       id: 'monkey',
       label: 'Monkey',
       color: '#ff7a66',
-      provider: 'VidFast Native',
+      provider: 'VidFast',
       primary: true,
       resolve: async function (context) {
         if (context.test) return fetchTestStream();
@@ -42,23 +58,52 @@
         }
 
         if (!context.id) return null;
-        var query = new URLSearchParams();
-        query.set('id', context.id);
-        if (context.season) query.set('s', context.season);
-        if (context.episode) query.set('e', context.episode);
 
-        var response = await fetch('/api/vidfast?' + query.toString(), { cache: 'no-store' });
-        var data = await response.json().catch(function () { return {}; });
-        if (!response.ok || !data || !data.url) {
-          throw new Error(data.error || 'VidFast native backend unavailable');
+        /*
+          Monkey always prefers the authorized native VidFast bridge.
+          Until that bridge is configured (or whenever it is unavailable),
+          Monkey falls back to VidFast's VC embed before CinPlayer moves to Elk.
+        */
+        if (context.params.get('native') !== '0') {
+          var controller = new AbortController();
+          var nativeTimeout = Math.max(350, Math.min(3000,
+            Number(context.params.get('nativeTimeout') || 1000)));
+          var timer = setTimeout(function () { controller.abort(); }, nativeTimeout);
+
+          try {
+            var query = new URLSearchParams();
+            query.set('id', context.id);
+            if (context.season) query.set('s', context.season);
+            if (context.episode) query.set('e', context.episode);
+
+            var response = await fetch('/api/vidfast?' + query.toString(), {
+              cache: 'no-store',
+              signal: controller.signal
+            });
+            var data = await response.json().catch(function () { return {}; });
+
+            if (response.ok && data && data.url) {
+              return {
+                url: data.url,
+                type: inferType(data.url, data.type),
+                provider: data.provider || 'VidFast Native',
+                tracks: Array.isArray(data.tracks) ? data.tracks : [],
+                audio: Array.isArray(data.audio) ? data.audio : [],
+                proxy: data.proxy === true
+              };
+            }
+          } catch (_) {
+            /* Fast fail into the VC embed below. */
+          } finally {
+            clearTimeout(timer);
+          }
         }
 
         return {
-          url: data.url,
-          type: inferType(data.url, data.type),
-          provider: data.provider || 'VidFast Native',
-          tracks: Array.isArray(data.tracks) ? data.tracks : [],
-          audio: Array.isArray(data.audio) ? data.audio : []
+          url: vidFastVC(context),
+          type: 'embed',
+          provider: 'VidFast VC',
+          fallback: true
         };
       }
     };
@@ -72,7 +117,9 @@
       provider: provider,
       resolve: async function (context) {
         var override = context.params.get(id);
-        if (override) return { url: override, type: inferType(override), provider: 'manual override' };
+        if (override) {
+          return { url: override, type: inferType(override), provider: 'manual override' };
+        }
         if (!context.id) return null;
         var template = context.season ? tv : movie;
         if (!template) return null;
@@ -85,8 +132,8 @@
     nativeVidFast(),
 
     embed('elk', 'Elk', '#6ec8ff', 'Videasy',
-      'https://player.videasy.net/movie/{id}?overlay=true',
-      'https://player.videasy.net/tv/{id}/{season}/{episode}?overlay=true&episodeSelector=true&nextEpisode=true'),
+      'https://player.videasy.net/movie/{id}',
+      'https://player.videasy.net/tv/{id}/{season}/{episode}'),
 
     embed('panda', 'Panda', '#c69cff', 'VidKing',
       'https://www.vidking.net/embed/movie/{id}?autoPlay=true',
@@ -120,9 +167,9 @@
       'https://vidsrc.hair/embed/movie/{id}',
       'https://vidsrc.hair/embed/tv/{id}/{season}/{episode}'),
 
-    embed('coyote', 'Coyote', '#f1a66a', 'VidSrc.tw',
-      'https://vidsrc.tw/embed/movie/{id}',
-      'https://vidsrc.tw/embed/tv/{id}/{season}/{episode}'),
+    embed('coyote', 'Coyote', '#f1a66a', 'VidSrc Embed',
+      'https://vidsrc-embed.ru/embed/movie?tmdb={id}&autoplay=1',
+      'https://vidsrc-embed.ru/embed/tv?tmdb={id}&season={season}&episode={episode}&autoplay=1'),
 
     embed('falcon', 'Falcon', '#8aa7ff', 'EmbedSU',
       'https://embed.su/embed/movie/{id}',
@@ -152,23 +199,23 @@
       'https://mapple.uk/watch/movie/{id}?autoPlay=true',
       'https://mapple.uk/watch/tv/{id}-{season}-{episode}?nextButton=true&autoPlay=true'),
 
-    embed('bison', 'Bison', '#b5a7ff', 'AutoEmbed player',
+    embed('bison', 'Bison', '#b5a7ff', 'AutoEmbed Player',
       'https://player.autoembed.cc/embed/movie/{id}',
       'https://player.autoembed.cc/embed/tv/{id}/{season}/{episode}'),
 
     embed('heron', 'Heron', '#70d6c7', 'Vidify',
-      'https://vidify.top/embed/movie/{id}',
-      'https://vidify.top/embed/tv/{id}/{season}/{episode}'),
+      'https://player.vidify.top/embed/movie/{id}',
+      'https://player.vidify.top/embed/tv/{id}/{season}/{episode}'),
 
     embed('moose', 'Moose', '#f0c36d', 'VidCore',
-      'https://www.vidcore.org/embed/movie/{id}',
-      'https://www.vidcore.org/embed/tv/{id}/{season}/{episode}'),
+      'https://www.vidcore.org/embed/movie/{id}?autoPlay=true',
+      'https://www.vidcore.org/embed/tv/{id}/{season}/{episode}?autoPlay=true'),
 
     embed('seal', 'Seal', '#7eb8ff', 'VidPlay',
       'https://vidplay.cc/embed/movie/{id}', null),
 
-    /* Keep the official VidFast embed as an emergency fallback only. */
-    embed('macaque', 'Macaque', '#ff8b72', 'VidFast Embed',
+    /* Extra provider/domain fallbacks. */
+    embed('macaque', 'Macaque', '#ff8b72', 'VidFast.to',
       'https://vidfast.to/embed/movie/{id}',
       'https://vidfast.to/embed/tv/{id}/{season}/{episode}'),
 
@@ -209,9 +256,9 @@
       'https://vidsrc.mov/embed/tv/{id}/{season}/{episode}')
   ];
 
-  /* Warm DNS/TLS for fallback providers without loading their players. */
+  /* Warm DNS/TLS without actually loading all of the players. */
   var origins = new Set();
-  sources.slice(1).forEach(function (source) {
+  sources.forEach(function (source) {
     try {
       var ctx = { id: '1', season: '', episode: '1', params: new URLSearchParams() };
       Promise.resolve(source.resolve(ctx)).then(function (candidate) {
