@@ -46,6 +46,7 @@
         var override = context.params.get('monkey');
         if (override) return { url: override, type: inferType(override), provider: 'manual override' };
         if (!context.id) return null;
+        await new Promise(function (resolve) { setTimeout(resolve, 0); });
 
         /* The owner-authorized native bridge is opt-in until its real backend is
            supplied. Default Monkey therefore goes straight to VidFast VC. */
@@ -168,7 +169,7 @@
   /* The current shell defines its globals after this file. A microtask upgrades
      that shell to a strict-priority triple queue before Monkey finishes its first
      asynchronous resolve. Three routes warm together; selection remains #1,#2,#3. */
-  queueMicrotask(function () {
+  setTimeout(function () {
     if (typeof window.runFallbackQueue !== 'function') return;
     window.CONCURRENCY = 3;
     if (window.params && !window.params.get('timeout')) window.PROBE_TIMEOUT = 950;
@@ -214,7 +215,7 @@
     };
 
     window.runFallbackQueue = async function (start, token) {
-      var cursor = Math.max(1, start);
+      var cursor = Math.max(0, start);
       while (cursor < window.SOURCES.length) {
         if (token !== window.runToken) return false;
         var indexes = [];
@@ -270,7 +271,38 @@
       }
       return false;
     };
-  });
+
+    window.startAuto = async function (start) {
+      if (window.autoRunning) return false;
+      window.autoRunning = true;
+      window.cancelProbes();
+      window.cleanupActive();
+      window.resolver.classList.remove('hidden');
+      window.mini.classList.remove('visible');
+
+      var token = ++window.runToken;
+      var ok = await window.runFallbackQueue(Math.max(0, start || 0), token);
+      window.autoRunning = false;
+      if (ok) return true;
+      if (token !== window.runToken) return false;
+
+      window.cleanupActive();
+      window.resolver.classList.add('hidden');
+      var fatal = document.getElementById('fatal');
+      if (fatal) fatal.style.display = 'flex';
+      return false;
+    };
+
+    /* Replace the shell's initial one-at-a-time Monkey boot with the new
+       three-wide priority window immediately. */
+    if (window.autoRunning && window.currentIndex === -1) {
+      window.autoRunning = false;
+      ++window.runToken;
+      window.cancelProbes();
+      window.cleanupActive();
+      window.startAuto(0);
+    }
+  }, 0);
 
   window.CINPLAYER_SOURCE_ADAPTERS = sources;
 })();
