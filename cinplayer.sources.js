@@ -214,6 +214,10 @@
     embed('seal', 'Seal', '#7eb8ff', 'VidPlay',
       'https://vidplay.cc/embed/movie/{id}', null),
 
+    embed('capybara', 'Capybara', '#c8a87b', 'Spenflix V4',
+      'https://spencerdevs.xyz/movie/{id}',
+      'https://spencerdevs.xyz/tv/{id}/{season}/{episode}'),
+
     /* Extra provider/domain fallbacks. */
     embed('macaque', 'Macaque', '#ff8b72', 'VidFast.to',
       'https://vidfast.to/embed/movie/{id}',
