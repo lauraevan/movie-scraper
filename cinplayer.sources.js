@@ -33,22 +33,14 @@
       resolve: async function (context) {
         var override = context.params.get(id);
         if (override) {
-          return {
-            url: override,
-            type: inferType(override),
-            provider: 'manual override'
-          };
+          return { url: override, type: inferType(override), provider: 'manual override' };
         }
 
         if (!context.id) return null;
         var template = context.season ? tv : movie;
         if (!template) return null;
 
-        return {
-          url: fill(template, context),
-          type: 'embed',
-          provider: provider
-        };
+        return { url: fill(template, context), type: 'embed', provider: provider };
       }
     };
   }
@@ -136,7 +128,49 @@
 
     adapter('moose', 'Moose', '#f0c36d', 'VidCore',
       'https://www.vidcore.org/embed/movie/{id}',
-      'https://www.vidcore.org/embed/tv/{id}/{season}/{episode}')
+      'https://www.vidcore.org/embed/tv/{id}/{season}/{episode}'),
+
+    adapter('seal', 'Seal', '#7eb8ff', 'VidPlay',
+      'https://vidplay.cc/embed/movie/{id}',
+      null),
+
+    /* Alternate domains. Keeping them as separate animals means a dead
+       domain can fail without taking the whole provider family with it. */
+    adapter('marten', 'Marten', '#ff8c7a', 'VidSrc.pm',
+      'https://vidsrc.pm/embed/movie/{id}',
+      'https://vidsrc.pm/embed/tv/{id}/{season}/{episode}'),
+
+    adapter('orca', 'Orca', '#7fd7ff', '2Embed.skin',
+      'https://2embed.skin/embed/movie/{id}',
+      'https://2embed.skin/embed/tv/{id}/{season}/{episode}'),
+
+    adapter('ibex', 'Ibex', '#d2a7ff', '2Embed.cc',
+      'https://2embed.cc/embed/movie/{id}',
+      'https://2embed.cc/embed/tv/{id}/{season}/{episode}'),
+
+    adapter('yak', 'Yak', '#ffb36b', 'VidSrc.to',
+      'https://vidsrc.to/embed/movie/{id}',
+      'https://vidsrc.to/embed/tv/{id}/{season}/{episode}'),
+
+    adapter('mole', 'Mole', '#76d6bd', 'VidSrc.cc',
+      'https://vidsrc.cc/v2/embed/movie/{id}?autoPlay=false',
+      'https://vidsrc.cc/v2/embed/tv/{id}/{season}/{episode}?autoPlay=false'),
+
+    adapter('parrot', 'Parrot', '#f28eb5', 'MoviesAPI.to',
+      'https://moviesapi.to/embed/movie/{id}',
+      'https://moviesapi.to/embed/tv/{id}/{season}/{episode}'),
+
+    adapter('swan', 'Swan', '#92e391', 'VidFast.co',
+      'https://vidfast.co/embed/movie/{id}',
+      'https://vidfast.co/embed/tv/{id}/{season}/{episode}'),
+
+    adapter('lemur', 'Lemur', '#8ca7ff', 'VidFast.pro',
+      'https://vidfast.pro/movie/{id}',
+      'https://vidfast.pro/tv/{id}/{season}/{episode}'),
+
+    adapter('goat', 'Goat', '#e5c271', 'VidSrc.mov',
+      'https://vidsrc.mov/embed/movie/{id}',
+      'https://vidsrc.mov/embed/tv/{id}/{season}/{episode}')
   ];
 
   var monkey = sources[0];
@@ -146,7 +180,7 @@
     return originalResolve(context);
   };
 
-  // Warm DNS/TLS for providers without loading every embed at once.
+  /* Warm DNS/TLS only. CinPlayer still loads providers lazily in pairs. */
   var origins = new Set();
   sources.forEach(function (source) {
     try {
@@ -158,11 +192,10 @@
           if (origins.has(origin)) return;
           origins.add(origin);
 
-          var link = document.createElement('link');
-          link.rel = 'preconnect';
-          link.href = origin;
-          link.crossOrigin = 'anonymous';
-          document.head.appendChild(link);
+          var preconnect = document.createElement('link');
+          preconnect.rel = 'preconnect';
+          preconnect.href = origin;
+          document.head.appendChild(preconnect);
 
           var dns = document.createElement('link');
           dns.rel = 'dns-prefetch';
