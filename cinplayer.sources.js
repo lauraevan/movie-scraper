@@ -42,12 +42,12 @@
     return { url: data.url, type: 'hls', provider: 'CinPlayer test' };
   }
 
-  function nativeVidFast() {
+  function monkeySource() {
     return {
       id: 'monkey',
       label: 'Monkey',
       color: '#ff7a66',
-      provider: 'VidFast',
+      provider: 'VidFast VC',
       primary: true,
       resolve: async function (context) {
         if (context.test) return fetchTestStream();
@@ -56,20 +56,14 @@
         if (override) {
           return { url: override, type: inferType(override), provider: 'manual override' };
         }
-
         if (!context.id) return null;
 
-        /*
-          Monkey always prefers the authorized native VidFast bridge.
-          Until that bridge is configured (or whenever it is unavailable),
-          Monkey falls back to VidFast's VC embed before CinPlayer moves to Elk.
-        */
-        if (context.params.get('native') !== '0') {
+        /* Native mode is opt-in until the authorized VidFast backend is actually
+           connected. Normal playback therefore never stalls on the placeholder
+           bridge and goes straight to the working VidFast VC embed. */
+        if (context.params.get('native') === '1') {
           var controller = new AbortController();
-          var nativeTimeout = Math.max(350, Math.min(3000,
-            Number(context.params.get('nativeTimeout') || 1000)));
-          var timer = setTimeout(function () { controller.abort(); }, nativeTimeout);
-
+          var timer = setTimeout(function () { controller.abort(); }, 550);
           try {
             var query = new URLSearchParams();
             query.set('id', context.id);
@@ -81,7 +75,6 @@
               signal: controller.signal
             });
             var data = await response.json().catch(function () { return {}; });
-
             if (response.ok && data && data.url) {
               return {
                 url: data.url,
@@ -93,7 +86,6 @@
               };
             }
           } catch (_) {
-            /* Fast fail into the VC embed below. */
           } finally {
             clearTimeout(timer);
           }
@@ -117,9 +109,7 @@
       provider: provider,
       resolve: async function (context) {
         var override = context.params.get(id);
-        if (override) {
-          return { url: override, type: inferType(override), provider: 'manual override' };
-        }
+        if (override) return { url: override, type: inferType(override), provider: 'manual override' };
         if (!context.id) return null;
         var template = context.season ? tv : movie;
         if (!template) return null;
@@ -129,7 +119,7 @@
   }
 
   var sources = [
-    nativeVidFast(),
+    monkeySource(),
 
     embed('elk', 'Elk', '#6ec8ff', 'Videasy',
       'https://player.videasy.net/movie/{id}',
@@ -218,7 +208,6 @@
       'https://spencerdevs.xyz/movie/{id}',
       'https://spencerdevs.xyz/tv/{id}/{season}/{episode}'),
 
-    /* Extra provider/domain fallbacks. */
     embed('macaque', 'Macaque', '#ff8b72', 'VidFast.to',
       'https://vidfast.to/embed/movie/{id}',
       'https://vidfast.to/embed/tv/{id}/{season}/{episode}'),
@@ -257,11 +246,71 @@
 
     embed('goat', 'Goat', '#e5c271', 'VidSrc.mov',
       'https://vidsrc.mov/embed/movie/{id}',
-      'https://vidsrc.mov/embed/tv/{id}/{season}/{episode}')
+      'https://vidsrc.mov/embed/tv/{id}/{season}/{episode}'),
+
+    /* Additional public embed adapters. Keep each domain separate so one dead
+       provider never blocks the rest of the queue. */
+    embed('puma', 'Puma', '#75c7c2', 'P-Stream',
+      'https://iframe.pstream.org/embed/tmdb-movie-{id}',
+      'https://iframe.pstream.org/embed/tmdb-tv-{id}/{season}/{episode}'),
+
+    embed('beaver', 'Beaver', '#d59b72', 'RiveStream',
+      'https://www.rivestream.app/embed?type=movie&id={id}',
+      'https://www.rivestream.app/embed?type=tv&id={id}&season={season}&episode={episode}'),
+
+    embed('ferret', 'Ferret', '#9ccf7a', 'Frembed',
+      'https://frembed.cc/api/film.php?id={id}',
+      'https://frembed.cc/api/serie.php?id={id}&sa={season}&epi={episode}'),
+
+    embed('wombat', 'Wombat', '#d9a0c8', 'Hexa',
+      'https://api.hexa.watch/movie/{id}',
+      'https://api.hexa.watch/tv/{id}/{season}/{episode}'),
+
+    embed('jaguar', 'Jaguar', '#f0b86e', 'VidLink',
+      'https://vidlink.pro/movie/{id}',
+      'https://vidlink.pro/tv/{id}/{season}/{episode}'),
+
+    embed('penguin', 'Penguin', '#7fa7da', 'VidSrc.su',
+      'https://vidsrc.su/embed/movie/{id}',
+      'https://vidsrc.su/embed/tv/{id}/{season}/{episode}'),
+
+    embed('sloth', 'Sloth', '#a994ca', 'VidSrc.vip',
+      'https://vidsrc.vip/embed/movie/{id}',
+      'https://vidsrc.vip/embed/tv/{id}/{season}/{episode}'),
+
+    embed('rhino', 'Rhino', '#8ea0a5', 'PrimeWire',
+      'https://www.primewire.tf/embed/movie?tmdb={id}',
+      'https://www.primewire.tf/embed/tv?tmdb={id}&season={season}&episode={episode}'),
+
+    embed('meerkat', 'Meerkat', '#d7bb74', '123Embed',
+      'https://play2.123embed.net/movie/{id}',
+      'https://play2.123embed.net/tv/{id}/{season}/{episode}'),
+
+    embed('panther', 'Panther', '#9a8cff', 'SmashyStream',
+      'https://embed.smashystream.com/playere.php?tmdb={id}',
+      'https://embed.smashystream.com/playere.php?tmdb={id}&season={season}&episode={episode}'),
+
+    embed('foxhound', 'Foxhound', '#d87979', 'Flicky',
+      'https://flicky.host/embed/movie/?id={id}',
+      'https://flicky.host/embed/tv/?id={id}/{season}/{episode}'),
+
+    embed('alpaca', 'Alpaca', '#d8bb91', 'Vidora',
+      'https://vidora.su/movie/{id}',
+      'https://vidora.su/tv/{id}/{season}/{episode}'),
+
+    embed('toucan', 'Toucan', '#71c9a8', 'EmbedMaster',
+      'https://embedmaster.link/movie/{id}',
+      'https://embedmaster.link/tv/{id}/{season}/{episode}'),
+
+    embed('aardvark', 'Aardvark', '#bf91d7', 'Cineby',
+      'https://cineby.sc/movie/{id}?play=true',
+      'https://cineby.sc/tv/{id}/{season}/{episode}?play=true')
   ];
 
-  /* Warm DNS/TLS without actually loading all of the players. */
+  /* DNS-prefetch everything, but only preconnect the first handful. Too many
+     preconnects can make startup slower by competing for sockets. */
   var origins = new Set();
+  var preconnected = 0;
   sources.forEach(function (source) {
     try {
       var ctx = { id: '1', season: '', episode: '1', params: new URLSearchParams() };
@@ -276,10 +325,14 @@
         dns.href = origin;
         document.head.appendChild(dns);
 
-        var preconnect = document.createElement('link');
-        preconnect.rel = 'preconnect';
-        preconnect.href = origin;
-        document.head.appendChild(preconnect);
+        if (preconnected < 12) {
+          preconnected++;
+          var preconnect = document.createElement('link');
+          preconnect.rel = 'preconnect';
+          preconnect.href = origin;
+          preconnect.crossOrigin = 'anonymous';
+          document.head.appendChild(preconnect);
+        }
       }).catch(function () {});
     } catch (_) {}
   });
