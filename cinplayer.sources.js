@@ -35,7 +35,7 @@
     var response = await fetch('/api?test=1');
     var data = await response.json();
     if (!response.ok || !data || !data.url) throw new Error((data && data.error) || 'Self-test unavailable');
-    return { url: data.url, type: 'hls', provider: 'CinPlayer test' };
+    return { url: data.url, type: 'hls', provider: 'CinPlayer test', clean: true };
   }
 
   function monkey() {
@@ -66,7 +66,8 @@
                 provider: data.provider || 'VidFast Native',
                 tracks: Array.isArray(data.tracks) ? data.tracks : [],
                 audio: Array.isArray(data.audio) ? data.audio : [],
-                proxy: data.proxy === true
+                proxy: data.proxy === true,
+                clean: true
               };
             }
           } catch (_) {
@@ -75,6 +76,43 @@
           }
         }
         return { url: vidFastVC(context), type: 'embed', provider: 'VidFast VC', fallback: true };
+      }
+    };
+  }
+
+  /* Restores the original repo's ad-free idea: resolve VidLink to a direct HLS
+     playlist and play it inside CinPlayer instead of loading VidLink's page. */
+  function nativeVidLink() {
+    return {
+      id: 'jaguar', label: 'Jaguar', color: '#f0b86e', provider: 'VidLink Native', clean: true,
+      resolve: async function (context) {
+        var override = context.params.get('jaguar');
+        if (override) {
+          return { url: override, type: inferType(override), provider: 'manual override', proxy: true, clean: true };
+        }
+        if (!context.id || context.test) return null;
+
+        var query = new URLSearchParams();
+        query.set('id', context.id);
+        if (context.season) query.set('s', context.season);
+        if (context.episode) query.set('e', context.episode);
+
+        var controller = new AbortController();
+        var timer = setTimeout(function () { controller.abort(); }, 2400);
+        try {
+          var response = await fetch('/api?' + query.toString(), { cache: 'no-store', signal: controller.signal });
+          var data = await response.json().catch(function () { return {}; });
+          if (!response.ok || !data || !data.url) throw new Error(data.error || 'native VidLink unavailable');
+          return {
+            url: data.url,
+            type: 'hls',
+            provider: 'VidLink Native',
+            proxy: true,
+            clean: true
+          };
+        } finally {
+          clearTimeout(timer);
+        }
       }
     };
   }
@@ -142,7 +180,27 @@
     ['aardvark','Aardvark','#bf91d7','Cineby','https://cineby.sc/movie/{id}?play=true','https://cineby.sc/tv/{id}/{season}/{episode}?play=true']
   ];
 
-  var sources = [monkey()].concat(defs.map(embed));
+  /* Keep Monkey first, put the original repo's native VidLink path second, then
+     all iframe fallbacks. Remove the old duplicate VidLink iframe entry. */
+  var sources = [monkey(), nativeVidLink()].concat(defs.filter(function (def) {
+    return def[0] !== 'jaguar';
+  }).map(embed));
+
+  /* Best-effort popup guard for CinPlayer's own browsing context. Cross-origin
+     iframe pages remain isolated by the browser, so native sources are the only
+     path that can be truly free of provider UI/ad scripts without sandboxing. */
+  try {
+    var originalOpen = window.open;
+    window.open = function (url, target, features) {
+      try {
+        var next = new URL(String(url || ''), location.href);
+        if (next.origin !== location.origin) return null;
+      } catch (_) {
+        return null;
+      }
+      return originalOpen.call(window, url, target, features);
+    };
+  } catch (_) {}
 
   /* Warm DNS for every source but only preconnect the first 12. Opening dozens
      of TLS sockets at once is slower than letting the triple queue do its job. */
