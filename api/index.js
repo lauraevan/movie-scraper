@@ -178,6 +178,26 @@ function rewriteTagUris(line, baseUrl) {
   });
 }
 
+/* HLS can advertise out-of-band interstitials with EXT-X-DATERANGE. The native
+   CinPlayer path has no reason to hand those ad assets to a provider player, so
+   remove only explicit interstitial directives. Normal movie segments are left
+   untouched. */
+function stripHlsInterstitials(body) {
+  return body
+    .split(/\r?\n/)
+    .filter(line => {
+      const upper = line.trim().toUpperCase();
+      if (!upper.startsWith('#EXT-X-DATERANGE:')) return true;
+
+      return !(
+        upper.includes('COM.APPLE.HLS.INTERSTITIAL') ||
+        upper.includes('X-ASSET-URI=') ||
+        upper.includes('X-ASSET-LIST=')
+      );
+    })
+    .join('\n');
+}
+
 function rewriteM3u8(body, baseUrl) {
   return body
     .split(/\r?\n/)
@@ -272,7 +292,8 @@ module.exports = async function handler(req, res) {
         for await (const chunk of upstream) chunks.push(chunk);
 
         const body = Buffer.concat(chunks).toString('utf8');
-        const rewritten = rewriteM3u8(body, finalUrl);
+        const cleaned = stripHlsInterstitials(body);
+        const rewritten = rewriteM3u8(cleaned, finalUrl);
 
         res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache');
