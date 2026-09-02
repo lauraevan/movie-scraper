@@ -177,7 +177,8 @@
     ['foxhound','Foxhound','#d87979','Flicky','https://flicky.host/embed/movie/?id={id}','https://flicky.host/embed/tv/?id={id}/{season}/{episode}'],
     ['alpaca','Alpaca','#d8bb91','Vidora','https://vidora.su/movie/{id}','https://vidora.su/tv/{id}/{season}/{episode}'],
     ['toucan','Toucan','#71c9a8','EmbedMaster','https://embedmaster.link/movie/{id}','https://embedmaster.link/tv/{id}/{season}/{episode}'],
-    ['aardvark','Aardvark','#bf91d7','Cineby','https://cineby.sc/movie/{id}?play=true','https://cineby.sc/tv/{id}/{season}/{episode}?play=true']
+    ['aardvark','Aardvark','#bf91d7','Cineby','https://cineby.sc/movie/{id}?play=true','https://cineby.sc/tv/{id}/{season}/{episode}?play=true'],
+    ['cinejoy','CineJoy','#d8a6ff','CineJoy','https://cinejoy.to/watch/movie/{id}','https://cinejoy.to/watch/tv/{id}/{season}/{episode}']
   ];
 
   /* Keep Monkey first, put the original repo's native VidLink path second, then
